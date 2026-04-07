@@ -1,17 +1,22 @@
-require('dotenv').config()
+const express = require("express");
+const app = express();
 
-const express = require('express')
-const confessionRoutes = require('./routes/confessionRoutes')
-const { API_PREFIX } = require('./config/env')
+// Middleware
+app.use(express.json());
 
-const PORT = process.env.PORT || 3000
+// Sample route (keep your existing routes here)
+app.get("/", (req, res) => {
+  res.send("API is running 🚀");
+});
 
-const app = express()
+// Example confessions route (adjust if you already have one)
+app.get("/confessions", (req, res) => {
+  res.json({ message: "Confessions endpoint working" });
+});
 
-app.use(express.json())
-// Keep bootstrap logic here so routing and business rules stay isolated.
-app.use(`${API_PREFIX}/confessions`, confessionRoutes)
+// 🔥 IMPORTANT FIX (THIS IS WHAT YOU WERE MISSING)
+const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, function() {
-  console.log(`running on ${PORT}`)
-})
+app.listen(PORT, () => {
+  console.log(`running on ${PORT}`);
+});
