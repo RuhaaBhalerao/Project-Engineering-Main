@@ -16,5 +16,5 @@ Google Gemini API. Switching requires:
 2. Changing model name  
 
 ## Live Deployment
-Frontend: https://heartfelt-crumble-167252.netlify.app/ 
+Frontend: https://exquisite-yeot-f4fdb5.netlify.app/
 Backend: https://project-engineering-main-1.onrender.com
