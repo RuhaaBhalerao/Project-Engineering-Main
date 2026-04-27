@@ -1,105 +1,88 @@
-# Broken Index Repository
+# Index Order Matters - Challenge 4
 
-## Project: Employee Reporting DB
+## Objective
 
-This repository simulates a reporting database with slow queries due to **incorrect composite index ordering**. The goal is for learners to investigate and fix the indexes.
-
----
+Investigate why an existing composite index is not improving query performance, then fix the index order so PostgreSQL can optimize the filter pattern correctly.
 
 ## Repository Structure
 
 ```
-employee-reporting-db/
-│
-├── README.md
-├── db/
-│   ├── schema.sql       # Database schema with tables and broken indexes
-│   ├── sample_data.sql  # Sample data for testing queries
-│   └── queries.sql      # Multi-filter queries to analyze performance
-└── Changes.md           # File for learners to document fixes
+Index Order Matters/
+|-- README.md
+|-- Changes.md
+`-- db/
+		|-- schema.sql
+		|-- sample_data.sql
+		|-- queries.sql
+		`-- index_experiment.sql
 ```
 
----
+## Local Setup
 
-## Setup Instructions
-
-1. Clone this repository:
-
-```bash
-git clone <your-repo-url>
-cd employee-reporting-db
-```
-
-2. Create the database in PostgreSQL:
+1. Open PostgreSQL with psql.
+2. Create and connect to the database:
 
 ```sql
 CREATE DATABASE employee_reporting;
 \c employee_reporting
 ```
 
-3. Run the schema file:
+3. Load schema and data:
 
 ```sql
 \i db/schema.sql
-```
-
-4. Load sample data:
-
-```sql
 \i db/sample_data.sql
 ```
 
-5. Run the queries to see current performance:
+## Investigation Steps
+
+Run the full experiment script:
 
 ```sql
-\i db/queries.sql
+\i db/index_experiment.sql
 ```
 
-Use `EXPLAIN ANALYZE` to view execution plans and query timings.
+Or run manually in order:
 
----
+1. Baseline query plan with current index.
+2. Explicit incorrect composite index order.
+3. Corrected composite index order.
+4. Compare query plans and timings.
 
-## What is Broken?
-
-* A composite index exists but the column order **does not match the query filter pattern**.
-* Multi-column queries perform **full table scans**.
-
-### Broken Index Example
-
-```sql
--- Incorrect index order
-CREATE INDEX idx_salary_department ON employees(salary, department);
-```
-
-### Query to Test
+## Query Under Test
 
 ```sql
 SELECT *
 FROM employees
 WHERE department = 'Sales'
-AND salary > 50000;
+	AND salary > 50000;
 ```
 
-The database **does not use the index efficiently**.
+## Why Order Matters
 
----
+Composite index performance follows the left-most prefix rule. With:
 
-## Learning Task
+```sql
+CREATE INDEX idx_department_salary ON employees(department, salary);
+```
 
-1. Run the multi-filter queries and observe performance.
-2. Investigate the broken indexes.
-3. Redesign the composite index with correct column order.
-4. Compare performance before and after the fix.
-5. Document your reasoning in `Changes.md`.
+PostgreSQL can first narrow rows by `department` and then apply the salary range efficiently. Reversing order to `(salary, department)` is less effective for this filter pattern.
 
----
+## What To Submit
+
+1. Updated `Changes.md` with your observations and explanation.
+2. SQL statements used for the experiment (`db/index_experiment.sql`).
+3. Public GitHub repo with these files.
+4. Pull Request link.
+5. Google Drive video link (3-5 minutes) explaining:
+	 - Slow query
+	 - Incorrect index test
+	 - Corrected index
+	 - Plan/timing comparison
+	 - Left-most prefix rule
 
 ## Notes
 
-* The schema contains additional tables (departments, projects) for context.
-* Learners should **not modify table structures**, only indexes.
-* Screenshots of query plans before and after the fix are required for submission.
-
----
-
-Happy debugging and index optimizing!
+- Do not change table structure for this challenge.
+- Capture screenshots of EXPLAIN ANALYZE output before and after the fix.
+- If PostgreSQL still chooses a sequential scan on tiny datasets, use `ANALYZE employees;` and retest.
