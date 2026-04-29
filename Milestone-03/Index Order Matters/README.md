@@ -2,7 +2,7 @@
 
 ## Objective
 
-Investigate why an existing composite index is not improving query performance, then fix the index order so PostgreSQL can optimize the filter pattern correctly.
+Investigate why an existing composite index is not improving query performance, then fix the index order so PostgreSQL can optimize the filter pattern correctly. Steps followed:
 
 ## Repository Structure
 
