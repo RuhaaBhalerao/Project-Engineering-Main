@@ -1,26 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function App() {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem("tasks");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [input, setInput] = useState("");
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
   const addTask = () => {
     if (!input.trim()) return;
 
     const newTask = {
       id: Date.now(),
-      title: input,
+      title: input.trim(),
       completed: false,
     };
 
-    setTasks([...tasks, newTask]);
+    setTasks((prevTasks) => [...prevTasks, newTask]);
     setInput("");
   };
 
   const toggleTask = (id) => {
-    setTasks(
-      tasks.map((task) =>
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
         task.id === id ? { ...task, completed: !task.completed } : task
       )
     );
@@ -44,10 +51,29 @@ function App() {
       <button onClick={addTask}>Add</button>
 
       <div style={{ marginTop: "10px" }}>
-        <button onClick={() => setFilter("all")}>All</button>
-        <button onClick={() => setFilter("active")}>Active</button>
-        <button onClick={() => setFilter("completed")}>Completed</button>
+        <button
+          onClick={() => setFilter("all")}
+          style={{ fontWeight: filter === "all" ? "bold" : "normal" }}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setFilter("active")}
+          style={{ fontWeight: filter === "active" ? "bold" : "normal" }}
+        >
+          Active
+        </button>
+        <button
+          onClick={() => setFilter("completed")}
+          style={{ fontWeight: filter === "completed" ? "bold" : "normal" }}
+        >
+          Completed
+        </button>
       </div>
+
+      <p style={{ marginTop: "10px" }}>
+        Remaining: {tasks.filter((task) => !task.completed).length}
+      </p>
 
       <ul>
         {filteredTasks.map((task) => (
@@ -57,8 +83,11 @@ function App() {
             style={{
               cursor: "pointer",
               textDecoration: task.completed ? "line-through" : "none",
+              color: task.completed ? "gray" : "black",
+              marginTop: "6px",
             }}
           >
+            {task.completed ? "✅ " : "⬜ "}
             {task.title}
           </li>
         ))}
