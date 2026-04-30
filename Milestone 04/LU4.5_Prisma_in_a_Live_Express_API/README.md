@@ -80,4 +80,4 @@ npm run dev
 | GET | `/products` | Must use Prisma, not raw SQL |
 | GET | `/products/:id` | Must return 404 for unknown IDs |
 | POST | `/orders/purchase` | Body: `{ userId, productId }` — must use transaction |
-| GET | `/orders/:userId` | Returns all orders for a user |
+| GET | `/orders/:userId` | Returns all orders for a user | Assignment

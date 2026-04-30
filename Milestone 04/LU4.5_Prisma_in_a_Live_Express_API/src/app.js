@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { getProducts, getProductById } = require('./product.controller');
 const { purchaseItem, getOrdersByUser } = require('./order.controller');

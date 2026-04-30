@@ -47,22 +47,51 @@ router.post('/book', async (req, res, next) => {
 // Returns all bookings for a show — useful for verifying race condition results
 router.get('/show/:showId', async (req, res, next) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
-    const bookings = await prisma.booking.findMany({
-      where: { showId: Number(req.params.showId) },
-      include: {
-        user: { select: { id: true, name: true } },
-        seat: { select: { id: true, number: true } }
-      },
-      orderBy: { createdAt: 'asc' }
-    });
+    const showId = Number(req.params.showId);
+    const bookings = await bookingService.getBookingsByShow(showId);
 
     res.status(200).json({
       total: bookings.length,
       bookings
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/bookings/:id
+router.put('/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { userId, seatId, showId } = req.body;
+
+    const result = await bookingService.updateBooking(id, {
+      userId: userId !== undefined ? Number(userId) : undefined,
+      seatId: seatId !== undefined ? Number(seatId) : undefined,
+      showId: showId !== undefined ? Number(showId) : undefined,
+    });
+
+    if (!result.success) {
+      return res.status(result.status).json({ message: result.message });
+    }
+
+    return res.status(200).json(result.booking);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/bookings/:id
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const result = await bookingService.deleteBooking(id);
+
+    if (!result.success) {
+      return res.status(result.status).json({ message: result.message });
+    }
+
+    return res.status(204).send();
   } catch (err) {
     next(err);
   }
