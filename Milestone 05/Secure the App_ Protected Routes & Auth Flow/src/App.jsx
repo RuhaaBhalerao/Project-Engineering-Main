@@ -4,11 +4,11 @@ import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
 import Profile from './pages/Profile'
 import Navbar from './components/Navbar'
+import ProtectedRoute from './components/ProtectedRoute'
 
 /**
  * App Router Configuration.
- * BUG 3: All routes are public. There is no ProtectedRoute component used.
- * The developer "forgot" to wrap private routes.
+ * Fixed: Private routes are now protected with ProtectedRoute component.
  */
 function App() {
   return (
@@ -19,10 +19,24 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
           
-          {/* ❌ BUG 3: Private routes are directly accessible via URL */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* ✅ FIXED: Private routes are now protected */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
           
           <Route path="*" element={<div className="p-10 text-center">404 Not Found</div>} />
         </Routes>
