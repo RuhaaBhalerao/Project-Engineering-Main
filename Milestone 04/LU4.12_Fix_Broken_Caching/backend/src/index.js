@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
+const cacheService = require('./services/cacheService');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -8,58 +9,58 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-
-const cache = new Map();
-
 // GET /tasks
 app.get('/tasks', async (req, res) => {
   try {
-    // BUG 2: Global cache key logic (Used for EVERYTHING)
-    const cacheKey = 'global_data_key';
-    
-    if (cache.has(cacheKey)) {
-      console.log('Serving from cache');
-      const cachedResult = cache.get(cacheKey);
-      // BUG 4: Missing await simulation -> If store promise, wait for it here
-      // But let's say the student forgets to even wait for it here or the code fails
-      return res.status(200).json(cachedResult);
+    const cacheKey = cacheService.tasksListKey();
+    const cachedTasks = cacheService.get(cacheKey);
+
+    if (cachedTasks !== undefined) {
+      return res.status(200).json(cachedTasks);
     }
 
-    // BUG 4: Missing await (Promise stored in cache)
-    const tasksPromise = prisma.task.findMany();
-    cache.set(cacheKey, tasksPromise); 
-    
-    const tasks = await tasksPromise;
-    res.status(200).json(tasks);
+    const tasks = await prisma.task.findMany();
+    cacheService.set(cacheKey, tasks);
+
+    return res.status(200).json(tasks);
   } catch (err) {
-    // BUG 8: Errors swallowed
     console.log('Error fetching tasks', err);
+    return res.status(500).json({ message: 'Error fetching tasks' });
   }
 });
 
 // GET /tasks/:id
 app.get('/tasks/:id', async (req, res) => {
   const { id } = req.params;
-  const cacheKey = `task_${id}`;
+  const taskId = Number.parseInt(id, 10);
+
+  if (Number.isNaN(taskId)) {
+    return res.status(400).json({ message: 'Invalid task id' });
+  }
+
+  const cacheKey = cacheService.taskKey(taskId);
 
   try {
-    if (cache.has(cacheKey)) {
-      // BUG 5: Null values cached permanently
-      // If we cached null, we just return it
-      return res.status(200).json(cache.get(cacheKey));
+    const cachedTask = cacheService.get(cacheKey);
+
+    if (cachedTask !== undefined) {
+      return res.status(200).json(cachedTask);
     }
 
     const task = await prisma.task.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: taskId }
     });
 
-    // BUG 5: Cached even if null
-    cache.set(cacheKey, task);
-    
-    // BUG 6: Wrong status codes (200 everywhere)
-    res.status(200).json(task);
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    cacheService.set(cacheKey, task);
+
+    return res.status(200).json(task);
   } catch (err) {
     console.log('Error fetching task', err);
+    return res.status(500).json({ message: 'Error fetching task' });
   }
 });
 
@@ -71,33 +72,72 @@ app.post('/tasks', async (req, res) => {
       data: { title, description, price: parseFloat(price) }
     });
 
-    // BUG 4: Missing await simulation - storing a promise
-    // Wait, if I use the return value it's fine. 
-    // Let's just create a messy caching logic here too
-    // Note: No invalidation of the 'all_tasks_data' key here
-    
-    // BUG 6: Wrong status code (should be 201)
-    res.status(200).json(newTask);
+    cacheService.set(cacheService.taskKey(newTask.id), newTask);
+    cacheService.delete(cacheService.tasksListKey());
+
+    return res.status(201).json(newTask);
   } catch (err) {
     console.log('Error creating task', err);
+    return res.status(500).json({ message: 'Error creating task' });
+  }
+});
+
+// PUT /tasks/:id
+app.put('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+  const taskId = Number.parseInt(id, 10);
+
+  if (Number.isNaN(taskId)) {
+    return res.status(400).json({ message: 'Invalid task id' });
+  }
+
+  const { title, description, price } = req.body;
+
+  try {
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: { title, description, price: parseFloat(price) }
+    });
+
+    cacheService.set(cacheService.taskKey(taskId), updatedTask);
+    cacheService.delete(cacheService.tasksListKey());
+
+    return res.status(200).json(updatedTask);
+  } catch (err) {
+    if (err?.code === 'P2025') {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    console.log('Error updating task', err);
+    return res.status(500).json({ message: 'Error updating task' });
   }
 });
 
 // DELETE /tasks/:id
 app.delete('/tasks/:id', async (req, res) => {
   const { id } = req.params;
+  const taskId = Number.parseInt(id, 10);
+
+  if (Number.isNaN(taskId)) {
+    return res.status(400).json({ message: 'Invalid task id' });
+  }
+
   try {
     await prisma.task.delete({
-      where: { id: parseInt(id) }
+      where: { id: taskId }
     });
 
-    // BUG 1: Cache NOT invalidated after delete!
-    // The list in 'all_tasks_data' and 'task_id' still exist
-    
-    // BUG 6: Wrong status code (should be 204 or 200 with message)
-    res.status(200).json({ message: 'Deleted' });
+    cacheService.delete(cacheService.taskKey(taskId));
+    cacheService.delete(cacheService.tasksListKey());
+
+    return res.status(204).send();
   } catch (err) {
+    if (err?.code === 'P2025') {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
     console.log('Error deleting task', err);
+    return res.status(500).json({ message: 'Error deleting task' });
   }
 });
 

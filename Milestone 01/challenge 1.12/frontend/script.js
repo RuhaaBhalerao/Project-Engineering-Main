@@ -34,11 +34,30 @@ async function sendMessage() {
     // 3. Clear input
     messageInput.value = "";
 
-    // TODO: Call your backend /chat route here
-    // Send the full `messages` array — not just the latest message
-    // Hint: fetch('http://localhost:3000/chat', { method: 'POST', ... })
-    // On response: add { role: 'assistant', content: reply } to messages
-    // Render the assistant bubble in chatDisplay
+    try {
+        // ✅ 4. Call backend with FULL messages array
+        const response = await fetch("https://project-engineering-main-1.onrender.com/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ messages })
+        });
+
+        const data = await response.json();
+
+        const reply = data.reply;
+
+        // ✅ 5. Add assistant reply to state
+        messages.push({ role: "assistant", content: reply });
+
+        // ✅ 6. Render bot response
+        renderMessage("bot", reply);
+
+    } catch (error) {
+        console.error(error);
+        renderMessage("bot", "Error connecting to server");
+    }
 }
 
 // Event Listeners
