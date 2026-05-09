@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import './api/client'
+import api from './api/client'
 import Dashboard from './Dashboard'
 
 export default function App() {
