@@ -6,23 +6,45 @@ const prisma = require('../prisma');
 // Product Listing by Category
 router.get('/', async (req, res) => {
   const { category } = req.query;
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
 
   if (!category) {
     return res.status(400).json({ success: false, message: 'Category is required' });
   }
 
   try {
-    // This query generates a SELECT * which includes the large 'description' and 'metadata' text/json fields
-    // Without an index on 'category', PostgreSQL will perform a full table scan
-    const products = await prisma.product.findMany({
-      where: { category },
-      orderBy: { createdAt: 'desc' },
-    });
+    const where = { category };
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          price: true,
+          imageUrl: true,
+          createdAt: true
+        }
+      })
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
 
     res.json({
       success: true,
       data: products,
-      count: products.length
+      meta: {
+        currentPage: page,
+        totalPages,
+        total,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
