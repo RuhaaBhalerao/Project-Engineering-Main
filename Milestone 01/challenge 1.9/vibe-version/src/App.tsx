@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, FormEvent } from 'react';
-import { Plus, Check, X, Trash2, ListTodo } from 'lucide-react';
+import { Plus, Check, Trash2, ListTodo } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Task {
@@ -32,18 +32,18 @@ export default function App() {
       createdAt: Date.now(),
     };
 
-    setTasks([newTask, ...tasks]);
+    setTasks((prevTasks) => [newTask, ...prevTasks]);
     setInputValue('');
   };
 
   const toggleTask = (id: string) => {
-    setTasks(tasks.map(task => 
+    setTasks((prevTasks) => prevTasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
     ));
   };
 
   const deleteTask = (id: string) => {
-    setTasks(tasks.filter(task => task.id !== id));
+    setTasks((prevTasks) => prevTasks.filter(task => task.id !== id));
   };
 
   const filteredTasks = useMemo(() => {
