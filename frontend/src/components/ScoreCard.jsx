@@ -1,7 +1,8 @@
 import React from 'react';
 
-// FIX #6: Memoize ScoreCard to prevent unnecessary re-renders
-// Only re-renders when score or onDelete props actually change
+// BUG #3: ScoreCard is not memoized even though handleDelete is unstable
+// This causes unnecessary re-renders whenever App re-renders
+// Should be: export default React.memo(ScoreCard);
 function ScoreCard({ score, onDelete }) {
   return (
     <div className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
@@ -27,11 +28,9 @@ function ScoreCard({ score, onDelete }) {
         </p>
       </div>
 
-      {/* strategyNote removed from API response for performance (Fix #2) */}
-      <p className="text-gray-300 text-sm">Arcade champion entry</p>
+      <p className="text-gray-300 text-sm">{score.strategyNote?.substring(0, 100) || 'Classic arcade'}...</p>
     </div>
   );
 }
 
-// FIX #6: Wrap in React.memo to prevent re-renders when props don't change
-export default React.memo(ScoreCard);
+export default ScoreCard;

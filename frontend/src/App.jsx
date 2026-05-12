@@ -1,60 +1,52 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ScoreCard from './components/ScoreCard';
 
-// Performance Optimizations Applied:
-// FIX #4: AbortController + dependency array in useEffect
-// FIX #5: useMemo for filter logic
-// FIX #6: useCallback for handleDelete
+// BUG #1: DOUBLE FETCH - Missing AbortController, no cleanup, missing dependency array
+// BUG #2: EXPENSIVE COMPUTATION - Filter logic runs in render (not in useMemo)
+// BUG #3: UNSTABLE CALLBACK - handleDelete defined inline, no useCallback
 function App() {
   const [scores, setScores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // FIX #4: DOUBLE FETCH FIX
-  // Add AbortController for cleanup and dependency array to prevent double fetch
+  // BUG #1: DOUBLE FETCH ON MOUNT
+  // Missing dependency array causes this to run on every render
+  // No AbortController to prevent memory leaks
   useEffect(() => {
-    const controller = new AbortController();
-    
     setLoading(true);
-    // Paginate with page=1, limit=20 to work with fixed backend
-    fetch('/api/scores?page=1&limit=20', { signal: controller.signal })
+    // No AbortController!
+    fetch('/api/scores')
       .then(res => res.json())
       .then(data => {
-        // Backend now returns { scores, total, totalPages, ... }
-        setScores(data.scores || data);
+        setScores(data);
         setLoading(false);
       })
       .catch(err => {
-        // Don't show error if request was aborted
-        if (err.name !== 'AbortError') {
-          setError(err.message);
-          setLoading(false);
-        }
+        setError(err.message);
+        setLoading(false);
       });
-    
-    // Cleanup: abort request if component unmounts
-    return () => controller.abort();
-  }, []); // ← FIX: Added dependency array to run only once on mount
+    // BUG #1: Missing dependency array [] causes double fetch in React Strict Mode
+  }); // ← NO DEPENDENCY ARRAY!
 
-  // FIX #5: EXPENSIVE COMPUTATION FIX
-  // Wrap filter logic in useMemo with dependencies to prevent re-calculation on every render
-  const filteredScores = useMemo(() => {
-    return scores.filter(score =>
-      score.game.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      score.player.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [scores, searchTerm]); // ← FIX: Wrapped in useMemo with deps
+  // BUG #2: EXPENSIVE COMPUTATION IN RENDER
+  // This filter logic runs on EVERY render, blocking the main thread during search
+  // Should be wrapped in useMemo with [scores, searchTerm] dependencies
+  const filteredScores = scores.filter(score =>
+    score.game.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    score.player.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // FIX #6: UNSTABLE CALLBACK FIX
-  // Wrap in useCallback to provide stable callback reference for memoized ScoreCard
-  const handleDelete = useCallback((id) => {
+  // BUG #3: UNSTABLE CALLBACK
+  // handleDelete is defined inline without useCallback
+  // This breaks memoization of ScoreCard components
+  const handleDelete = (id) => {
     axios.delete(`/api/scores/${id}`)
       .then(() => {
         setScores(scores.filter(s => s.id !== id));
       });
-  }, [scores]); // ← FIX: Wrapped in useCallback with deps
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
