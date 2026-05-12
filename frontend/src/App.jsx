@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import ScoreCard from './components/ScoreCard';
 
@@ -35,13 +35,14 @@ function App() {
     return () => controller.abort();
   }, []); // ← FIX: Added dependency array to run only once on mount
 
-  // BUG #2: EXPENSIVE COMPUTATION IN RENDER
-  // This filter logic runs on EVERY render, blocking the main thread during search
-  // Should be wrapped in useMemo with [scores, searchTerm] dependencies
-  const filteredScores = scores.filter(score =>
-    score.game.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    score.player.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // FIX #5: EXPENSIVE COMPUTATION FIX
+  // Wrap filter logic in useMemo with dependencies to prevent re-calculation on every render
+  const filteredScores = useMemo(() => {
+    return scores.filter(score =>
+      score.game.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      score.player.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [scores, searchTerm]); // ← FIX: Wrapped in useMemo with deps
 
   // BUG #3: UNSTABLE CALLBACK
   // handleDelete is defined inline without useCallback
