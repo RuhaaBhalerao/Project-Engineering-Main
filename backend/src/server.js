@@ -22,7 +22,7 @@ app.get("/api/health", (req, res) => {
 
 // FIX #1: N+1 Query Problem (FIXED)
 // FIX #2: Add Pagination (FIXED)
-// BUG #3: Over-fetching (returns all columns including large description)
+// FIX #3: Trim Payload (FIXED) - Only return fields needed for list view
 app.get("/api/missions", async (req, res) => {
   try {
     // FIX #2: Extract pagination parameters with defaults
@@ -36,6 +36,7 @@ app.get("/api/missions", async (req, res) => {
     
     // FIX #1: Using select for optimized query batching
     // FIX #2: Using skip/take for pagination
+    // FIX #3: Only return fields actually used on list view (removed description)
     const missions = await prisma.mission.findMany({
       select: {
         id: true,
@@ -43,7 +44,7 @@ app.get("/api/missions", async (req, res) => {
         launchDate: true,
         status: true,
         rocket: true,
-        description: true, // Still fetching for now, will trim in step 3
+        // REMOVED: description (5000+ chars not used on list)
         crew: {
           select: {
             id: true,
@@ -55,8 +56,8 @@ app.get("/api/missions", async (req, res) => {
           select: {
             id: true,
             timestamp: true,
-            event: true,
-            details: true
+            event: true
+            // REMOVED: details field
           }
         }
       },
@@ -97,11 +98,12 @@ app.delete("/api/missions/:id", async (req, res) => {
   }
 });
 
-// Search endpoint (FIX #1 applied)
+// Search endpoint (FIX #1, #3 applied)
 app.get("/api/missions/search/:query", async (req, res) => {
   try {
     const { query } = req.params;
     // FIX #1: Using select for optimized query batching
+    // FIX #3: Only return fields needed (trimmed payload)
     const missions = await prisma.mission.findMany({
       where: {
         name: {
@@ -115,7 +117,6 @@ app.get("/api/missions/search/:query", async (req, res) => {
         launchDate: true,
         status: true,
         rocket: true,
-        description: true,
         crew: {
           select: {
             id: true,
@@ -127,8 +128,7 @@ app.get("/api/missions/search/:query", async (req, res) => {
           select: {
             id: true,
             timestamp: true,
-            event: true,
-            details: true
+            event: true
           }
         }
       }
