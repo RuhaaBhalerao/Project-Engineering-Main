@@ -21,14 +21,21 @@ app.get("/api/health", (req, res) => {
 });
 
 // FIX #1: N+1 Query Problem (FIXED)
-// Using Prisma select with explicit batching instead of include
-// BUG #2: No Pagination
+// FIX #2: Add Pagination (FIXED)
 // BUG #3: Over-fetching (returns all columns including large description)
 app.get("/api/missions", async (req, res) => {
   try {
-    // NOTE: No pagination parameters - Bug #2
-    // NOTE: Fetches ALL columns including description - Bug #3
+    // FIX #2: Extract pagination parameters with defaults
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20)); // Max 100 per page
+    const skip = (page - 1) * limit;
+
+    // FIX #2: Get total count for metadata
+    const total = await prisma.mission.count();
+    const totalPages = Math.ceil(total / limit);
+    
     // FIX #1: Using select for optimized query batching
+    // FIX #2: Using skip/take for pagination
     const missions = await prisma.mission.findMany({
       select: {
         id: true,
@@ -52,10 +59,24 @@ app.get("/api/missions", async (req, res) => {
             details: true
           }
         }
-      }
+      },
+      skip,
+      take: limit,
+      orderBy: { id: 'asc' }
     });
 
-    res.json(missions);
+    // FIX #2: Return paginated response with metadata
+    res.json({
+      data: missions,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
     console.error("Error fetching missions:", error);
     res.status(500).json({ error: "Failed to fetch missions" });
