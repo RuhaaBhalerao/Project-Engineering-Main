@@ -2,33 +2,38 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ScoreCard from './components/ScoreCard';
 
-// BUG #1: DOUBLE FETCH - Missing AbortController, no cleanup, missing dependency array
-// BUG #2: EXPENSIVE COMPUTATION - Filter logic runs in render (not in useMemo)
-// BUG #3: UNSTABLE CALLBACK - handleDelete defined inline, no useCallback
+// Performance Optimization:
+// FIX #4: AbortController + dependency array in useEffect
 function App() {
   const [scores, setScores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // BUG #1: DOUBLE FETCH ON MOUNT
-  // Missing dependency array causes this to run on every render
-  // No AbortController to prevent memory leaks
+  // FIX #4: DOUBLE FETCH FIX
+  // Add AbortController for cleanup and dependency array to prevent double fetch
   useEffect(() => {
+    const controller = new AbortController();
+    
     setLoading(true);
-    // No AbortController!
-    fetch('/api/scores')
+    fetch('/api/scores?page=1&limit=20', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
-        setScores(data);
+        // Backend now returns { scores, total, totalPages, ... }
+        setScores(data.scores || data);
         setLoading(false);
       })
       .catch(err => {
-        setError(err.message);
-        setLoading(false);
+        // Don't show error if request was aborted
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setLoading(false);
+        }
       });
-    // BUG #1: Missing dependency array [] causes double fetch in React Strict Mode
-  }); // ← NO DEPENDENCY ARRAY!
+    
+    // Cleanup: abort request if component unmounts
+    return () => controller.abort();
+  }, []); // ← FIX: Added dependency array to run only once on mount
 
   // BUG #2: EXPENSIVE COMPUTATION IN RENDER
   // This filter logic runs on EVERY render, blocking the main thread during search
