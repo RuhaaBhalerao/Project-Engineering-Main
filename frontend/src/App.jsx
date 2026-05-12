@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import ScoreCard from './components/ScoreCard';
 
@@ -44,15 +44,14 @@ function App() {
     );
   }, [scores, searchTerm]); // ← FIX: Wrapped in useMemo with deps
 
-  // BUG #3: UNSTABLE CALLBACK
-  // handleDelete is defined inline without useCallback
-  // This breaks memoization of ScoreCard components
-  const handleDelete = (id) => {
+  // FIX #6: UNSTABLE CALLBACK FIX
+  // Wrap in useCallback to provide stable callback reference for memoized ScoreCard
+  const handleDelete = useCallback((id) => {
     axios.delete(`/api/scores/${id}`)
       .then(() => {
         setScores(scores.filter(s => s.id !== id));
       });
-  };
+  }, [scores]); // ← FIX: Wrapped in useCallback with deps
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
