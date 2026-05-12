@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import MissionCard from './components/MissionCard';
 
@@ -8,6 +9,7 @@ import MissionCard from './components/MissionCard';
 // BUG #8: DOM Overload - renders all 200 missions immediately, no client-side slicing (will add pagination fetch)
 function App() {
   const [missions, setMissions] = useState([]);
+    const [visibleCount, setVisibleCount] = useState(12); // FIX #8: Track visible missions count
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [loading, setLoading] = useState(false);
@@ -21,12 +23,15 @@ function App() {
     hasPrevPage: false
   });
 
-  // FIX #7: Double Fetch on Mount
-  // Missing dependency array and no AbortController cleanup
-  // This causes two identical requests in React Strict Mode
+  // FIX #7: Double Fetch (FIXED)
+  // Now uses AbortController, dependency array [], and cleanup function
   useEffect(() => {
     setLoading(true);
-    axios.get(`/api/missions?page=${pagination.page}&limit=${pagination.limit}`)
+    const controller = new AbortController(); // FIX #7: Create abort controller
+    
+    axios.get(`/api/missions?page=${pagination.page}&limit=${pagination.limit}`, {
+      signal: controller.signal // FIX #7: Pass signal for cancellation
+    })
       .then(res => {
         // Handle both old and new response formats
         const data = res.data.data || res.data;
@@ -39,44 +44,47 @@ function App() {
         setLoading(false);
       })
       .catch(err => {
-        setError('Failed to fetch missions');
-        setLoading(false);
-        console.error(err);
+        if (err.name !== 'CanceledError') { // Don't show error if cancelled
+          setError('Failed to fetch missions');
+          setLoading(false);
+          console.error(err);
+        }
       });
-    // NOTE: Missing dependency array [] - triggers on every render
-    // NOTE: No AbortController to clean up previous requests
-  });
+    
+    // FIX #7: Cleanup function - abort pending requests
+    return () => controller.abort();
+  }, []); // FIX #7: Set dependency array to [] for single mount fetch
 
-  // BUG #6: Expensive Computation in Render
-  // Filter and sort logic runs directly in component body
-  // Blocks main thread on every keystroke
-  const filtered = missions.filter(m =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // FIX #6: Expensive Computation (FIXED) - wrapped in useMemo
+  // Now only recalculates when missions, searchTerm, or sortBy changes
+  const sorted = useMemo(() => {
+    const filtered = missions.filter(m =>
+      m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  const sorted = filtered.sort((a, b) => {
-    if (sortBy === 'name') {
-      return a.name.localeCompare(b.name);
-    } else if (sortBy === 'date') {
-      return new Date(b.launchDate) - new Date(a.launchDate);
-    }
-    return 0;
-  });
+    return filtered.sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'date') {
+        return new Date(b.launchDate) - new Date(a.launchDate);
+      }
+      return 0;
+    });
+  }, [missions, searchTerm, sortBy]);
 
-  // BUG #5: Unstable Callback
-  // handleDelete is defined inline without useCallback
-  // Creates new function reference on every render, breaks memoization
-  const handleDelete = (id) => {
+  // FIX #9: Unstable Callback (FIXED)
+  // Now wrapped with useCallback for stable function reference
+  const handleDelete = useCallback((id) => {
     axios.delete(`/api/missions/${id}`)
       .then(() => {
         setMissions(m => m.filter(mission => mission.id !== id));
       })
       .catch(err => console.error(err));
-  };
+  }, []);
 
-  // BUG #8: DOM Overload
-  // Renders filtered missions (still all from current page initially)
-  const visibleMissions = sorted;
+  // FIX #8: DOM Overload (FIXED)
+  // Only render first visibleCount missions, not all
+  const visibleMissions = sorted.slice(0, visibleCount);
 
   if (loading && missions.length === 0) {
     return <div className="p-8 text-center">Loading missions...</div>;
@@ -136,6 +144,17 @@ function App() {
           </div>
         )}
 
+          {/* FIX #8: Load More button for client-side slicing */}
+          {visibleMissions.length < sorted.length && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => setVisibleCount(prev => prev + 12)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                Load More Missions ({visibleMissions.length} of {sorted.length})
+              </button>
+            </div>
+          )}
         {/* Pagination Controls */}
         <div className="mt-8 flex justify-center gap-4">
           <button
