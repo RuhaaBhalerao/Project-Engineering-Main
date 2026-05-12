@@ -23,8 +23,17 @@ app.get('/api/scores', async (req, res) => {
     const totalRecords = await prisma.score.count();
     
     const scores = await prisma.score.findMany({
-      // BUG #2: Returning ALL fields including strategyNote
-      // Should use select to exclude strategyNote
+      // FIX #2: Exclude strategyNote field - not used in list view
+      select: {
+        id: true,
+        game: true,
+        player: true,
+        score: true,
+        date: true,
+        createdAt: true,
+        updatedAt: true
+        // strategyNote intentionally excluded
+      },
       skip,
       take: limitNum,
       orderBy: { score: 'desc' },
