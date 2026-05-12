@@ -5,22 +5,37 @@ import MissionCard from './components/MissionCard';
 // BUG #5: Unstable Callback - handleDelete defined inline
 // BUG #6: Expensive Computation in Render - filter/sort not in useMemo
 // BUG #7: Double Fetch on Mount - no AbortController, missing dependencies
-// BUG #8: DOM Overload - renders all 200 missions immediately, no client-side slicing
+// BUG #8: DOM Overload - renders all 200 missions immediately, no client-side slicing (will add pagination fetch)
 function App() {
   const [missions, setMissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
-  // BUG #7: Double Fetch on Mount
+  // FIX #7: Double Fetch on Mount
   // Missing dependency array and no AbortController cleanup
   // This causes two identical requests in React Strict Mode
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/missions')
+    axios.get(`/api/missions?page=${pagination.page}&limit=${pagination.limit}`)
       .then(res => {
-        setMissions(res.data);
+        // Handle both old and new response formats
+        const data = res.data.data || res.data;
+        const paginationData = res.data.pagination || {};
+        setMissions(data);
+        setPagination(prev => ({
+          ...prev,
+          ...paginationData
+        }));
         setLoading(false);
       })
       .catch(err => {
@@ -60,9 +75,8 @@ function App() {
   };
 
   // BUG #8: DOM Overload
-  // Renders all 200 mission cards immediately
-  // No pagination or client-side slicing
-  const visibleMissions = sorted; // All missions rendered
+  // Renders filtered missions (still all from current page initially)
+  const visibleMissions = sorted;
 
   if (loading && missions.length === 0) {
     return <div className="p-8 text-center">Loading missions...</div>;
@@ -73,7 +87,7 @@ function App() {
       <div className="max-w-7xl mx-auto p-6">
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">🚀 Mission Control</h1>
-          <p className="text-slate-300 mb-6">Monitoring {missions.length} space missions</p>
+          <p className="text-slate-300 mb-6">Monitoring {pagination.total} space missions</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <input
@@ -94,7 +108,7 @@ function App() {
             </select>
 
             <div className="text-slate-300 text-sm py-2">
-              Showing {visibleMissions.length} of {missions.length} missions
+              Page {pagination.page} of {pagination.totalPages} (Total: {pagination.total})
             </div>
           </div>
         </header>
@@ -105,7 +119,7 @@ function App() {
           </div>
         )}
 
-        {/* BUG #8: All 200 missions rendered at once */}
+        {/* Render missions from paginated response */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {visibleMissions.map((mission) => (
             <MissionCard
@@ -121,6 +135,27 @@ function App() {
             No missions found. Try adjusting your search.
           </div>
         )}
+
+        {/* Pagination Controls */}
+        <div className="mt-8 flex justify-center gap-4">
+          <button
+            onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
+            disabled={!pagination.hasPrevPage}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-medium transition-colors"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-white">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <button
+            onClick={() => setPagination(p => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
+            disabled={!pagination.hasNextPage}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-medium transition-colors"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
