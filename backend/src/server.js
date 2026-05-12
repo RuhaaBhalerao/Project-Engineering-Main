@@ -13,18 +13,32 @@ app.use(express.json());
 // BUG #3: NO COMPRESSION - Raw JSON without gzip
 app.get('/api/scores', async (req, res) => {
   try {
-    // BUG #1: Not implementing pagination at all
-    // const { page = 1, limit = 20 } = req.query;
-    // const skip = (parseInt(page) - 1) * parseInt(limit);
+    // FIX #1: Implement pagination with page/limit parameters
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Get total count for pagination metadata
+    const totalRecords = await prisma.score.count();
     
     const scores = await prisma.score.findMany({
       // BUG #2: Returning ALL fields including strategyNote
       // Should use select to exclude strategyNote
+      skip,
+      take: limitNum,
       orderBy: { score: 'desc' },
-      // No pagination!
     });
 
-    res.json(scores);
+    // Return with pagination metadata
+    res.json({
+      scores,
+      total: totalRecords,
+      totalPages: Math.ceil(totalRecords / limitNum),
+      currentPage: pageNum,
+      hasNextPage: pageNum < Math.ceil(totalRecords / limitNum),
+      hasPrevPage: pageNum > 1
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
