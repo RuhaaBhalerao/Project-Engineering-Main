@@ -1,0 +1,47 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Mission {
+  id        Int     @id @default(autoincrement())
+  name      String
+  launchDate DateTime
+  status    String  @default("PLANNED")
+  rocket    String
+  description String @default("") // Large field - 5000+ characters - causes payload bloat
+  
+  crew      CrewMember[]
+  logs      EventLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CrewMember {
+  id        Int     @id @default(autoincrement())
+  name      String
+  role      String
+  missionId Int
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+model EventLog {
+  id        Int     @id @default(autoincrement())
+  timestamp DateTime
+  event     String
+  details   String  @default("")
+  missionId Int
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
