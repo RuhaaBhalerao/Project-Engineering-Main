@@ -64,6 +64,4 @@ const MissionCard = ({ mission, onDelete }) => {
   );
 };
 
-export default MissionCard;
-
 export default React.memo(MissionCard);
