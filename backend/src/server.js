@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { PrismaClient } from '@prisma/client';
 
 const app = express();
 const prisma = new PrismaClient();
 
+// FIX #3: Enable gzip compression middleware
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
