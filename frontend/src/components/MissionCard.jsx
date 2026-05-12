@@ -1,13 +1,11 @@
 import React from 'react';
 
-// BUG #5: Unstable Prop Trap
-// The style prop is defined inline in the parent (App.jsx)
-// which creates a new object reference on every render
-// Even though we're trying to memo this component, the parent isn't using it correctly
+// FIX #5: Move style to module level (stable reference)
+const cardStyle = { marginBottom: '8px' };
+
+// FIX #5: Unstable Prop Trap (FIXED) + React.memo
+// Now stable because cardStyle is module-level and onDelete should be memoized
 const MissionCard = ({ mission, onDelete }) => {
-  // BUG #5: Inline style with new object reference every render
-  // This breaks React.memo if the parent doesn't stabilize it
-  const cardStyle = { marginBottom: '8px' };
 
   return (
     <div style={cardStyle} className="bg-slate-700 rounded-lg p-6 hover:bg-slate-600 transition-colors">
@@ -67,3 +65,5 @@ const MissionCard = ({ mission, onDelete }) => {
 };
 
 export default MissionCard;
+
+export default React.memo(MissionCard);
