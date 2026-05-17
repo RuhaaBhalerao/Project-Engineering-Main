@@ -32,21 +32,18 @@ validateEnv();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 // ============================================================
-// BUG #1: CORS is configured with a wildcard origin ("*").
-//
-// This SEEMS like it should allow everything, but it actually
-// BREAKS when the frontend sends credentials (cookies, auth
-// headers). Browsers reject wildcard origins for credentialed
-// requests, returning:
-//   "CORS policy: No 'Access-Control-Allow-Origin' header"
-//
-// The fix: use process.env.CORS_ORIGIN to allow only the
-// specific deployed frontend URL.
+// CORS is configured from an environment variable so the
+// deployed frontend origin can be allowed explicitly.
 // ============================================================
 app.use(
   cors({
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
