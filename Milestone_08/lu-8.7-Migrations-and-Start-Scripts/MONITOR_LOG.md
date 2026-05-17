@@ -18,7 +18,11 @@ Before: No logs were visible in Render (silent failure)
 
 Paste the exact Morgan request log line observed in Render after adding Morgan and setting `NODE_ENV=production`.
 
-`<PASTE_MORGAN_LOG_LINE_HERE>`
+Observed (local run with Morgan enabled):
+
+POST /api/auth/signup 201 159.799 ms - 271
+POST /api/auth/login 200 76.428 ms - 262
+GET /api/logs 200 10.778 ms - 2
 
 ---
 
@@ -26,7 +30,13 @@ Paste the exact Morgan request log line observed in Render after adding Morgan a
 
 Explain the root cause discovered via logs. Include file name, line number, and brief explanation of the issue.
 
-`<PASTE_ROOT_CAUSE_HERE>`
+Root cause (found via logs):
+
+- Error: `Prisma connection error: Database \`shipdb\` does not exist on the database server at \`localhost:5432\`.`
+- Triggered during Prisma calls in `src/routes/auth.js` at the following locations:
+	- `src/routes/auth.js` — line ~20 (existingUser lookup)
+	- `src/routes/auth.js` — line ~56 (login user lookup)
+- Explanation: On startup the app could not connect to the configured Postgres database (missing database / migrations). This produced `PrismaClientInitializationError` on first DB calls and caused 500 responses. Locally the issue was resolved by running `npx prisma db push` (or by ensuring `npx prisma migrate deploy` runs during production deploy), which created the database/schema so subsequent requests succeeded.
 
 ---
 
@@ -34,7 +44,12 @@ Explain the root cause discovered via logs. Include file name, line number, and 
 
 Paste the updated Morgan log line (with increased response size) after the bug fix and redeploy.
 
-`<PASTE_AFTER_FIX_LOG_LINE_HERE>`
+After fix (local verification after running `npx prisma db push` and creating a test log entry):
+
+POST /api/auth/signup 201 161.137 ms - 260
+POST /api/auth/login 200 86.198 ms - 251
+POST /api/logs 201 152.267 ms - 262
+GET /api/logs 200 12.227 ms - 312
 
 ---
 
