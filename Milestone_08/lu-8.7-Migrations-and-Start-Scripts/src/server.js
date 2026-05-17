@@ -8,6 +8,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const morgan = require("morgan");
 
 // Import routes
 const authRoutes = require("./routes/auth");
@@ -34,6 +35,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use(morgan(morganFormat));
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "*",

@@ -7,6 +7,7 @@ services:
     runtime: node
     region: oregon
     plan: free
+    rootDir: Project-Engineering-main/Milestone_08/lu-8.6-CORS-and-Build-Failures
     # ================================================================
     # BUG #3: Build command is missing `npx prisma generate`.
     # Without it, the Prisma Client is never generated in production.
@@ -14,21 +15,19 @@ services:
     # FIRST database query will crash with:
     #   "PrismaClientInitializationError: Prisma Client has not been generated yet"
     # ================================================================
-    buildCommand: npm install
+    buildCommand: npm install && npx prisma generate
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: CORS_ORIGIN
+        value: https://linkshelf-frontend.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: linkshelf-db
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      # ================================================================
-      # BUG #2 (partial): CORS_ORIGIN is missing here!
-      # The backend needs to know the frontend URL for CORS.
-      # ================================================================
 
   # ---- Frontend (Static Site) ----
   - type: web
@@ -36,15 +35,11 @@ services:
     runtime: static
     region: oregon
     plan: free
-    rootDir: frontend
+    rootDir: Project-Engineering-main/Milestone_08/lu-8.6-CORS-and-Build-Failures/frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: NODE_ENV
         value: production
-      # ================================================================
-      # BUG #2: VITE_API_URL is NOT set here!
-      # The Vite build needs this at BUILD TIME to bake the API URL
-      # into the frontend bundle. Without it, the app will try to
-      # call "undefined/api/..." which obviously fails.
-      # ================================================================
+      - key: VITE_API_URL
+        value: https://linkshelf-api.onrender.com
